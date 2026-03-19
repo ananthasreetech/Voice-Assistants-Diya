@@ -222,11 +222,13 @@ def build_system_prompt() -> str:
         f"1. Always respond in clear, natural English.\n"
         f"2. Keep every response to 2-3 short sentences. This is a voice interface — be concise.\n"
         f"3. No markdown, no bullet points, no asterisks, no special characters.\n"
-        f"4. ADDRESSING: The primary user you are talking with is {user_name}. "
-        f"Address them as {user_name} when speaking to or about them. "
-        f"However, if the user introduces or mentions another person by name "
-        f"(e.g. a child, spouse, friend), address or refer to THAT person by THEIR OWN name — "
-        f"never append {user_name} at the end of a message directed at someone else.\n"
+        f"4. ADDRESSING — READ THIS CAREFULLY:\n"
+        f"   - The primary user is {user_name}. Use their name when speaking TO or ABOUT them.\n"
+        f"   - When the user asks you to greet, wish, or speak TO a DIFFERENT person by name,\n"
+        f"     your ENTIRE response must be directed at THAT person. Do NOT end with {user_name}.\n"
+        f"   - BAD:  'Good luck Khevanch, I hope you do well, Sreeni.'\n"
+        f"   - GOOD: 'Good luck Khevanch, I hope you do brilliantly in your exams!'\n"
+        f"   - The name {user_name} must NEVER appear in a message addressed to someone else.\n"
         f"5. You are {ASSISTANT_NAME}. Introduce yourself only on the very first greeting.\n"
         f"6. If you don't know something, say so honestly rather than guessing.\n"
         f"{mem_block}\n"
@@ -251,8 +253,42 @@ def get_llm_response(user_query: str, search_context: str | None) -> str:
 
 # ── Transcription ─────────────────────────────────────────────────────────────
 
+# Whisper hallucinates these phrases when it receives silence or background noise.
+# Any transcription that exactly matches or starts with one of these is rejected.
+_WHISPER_HALLUCINATIONS: set[str] = {
+    "you", "thank you", "thanks", "thanks for watching", "thank you for watching",
+    "thank you.", "thanks.", "bye", "bye.", "goodbye", "goodbye.",
+    "please subscribe", "like and subscribe", "see you next time",
+    "uh", "um", "hmm", "hm", "ah", "oh",
+    "order of p1", "order of pi", "i",
+}
+
+def _is_hallucination(text: str) -> bool:
+    """
+    Return True if the transcription is a known Whisper silence-hallucination.
+    Checks:
+      1. Exact match against known hallucinated phrases (case-insensitive).
+      2. Very short result (1-2 words, under 10 chars) with no real content.
+      3. Repetitive filler like "..." or "......"
+    """
+    cleaned = text.strip().lower().rstrip(".")
+    # Exact match
+    if cleaned in _WHISPER_HALLUCINATIONS:
+        return True
+    # Single character or empty
+    if len(cleaned) <= 2:
+        return True
+    # Pure punctuation / dots
+    if all(c in "., !?-_" for c in cleaned):
+        return True
+    return False
+
+
 def transcribe(audio_bytes: bytes) -> str:
-    """Transcribe with explicit English hint for accurate, consistent output."""
+    """
+    Transcribe audio with explicit English hint.
+    Returns empty string if Whisper returns silence hallucination.
+    """
     client = groq_sdk.Groq(api_key=api_key)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp.write(audio_bytes)
@@ -265,7 +301,11 @@ def transcribe(audio_bytes: bytes) -> str:
                 response_format="text",
                 language="en",
             )
-        return (result or "").strip()
+        text = (result or "").strip()
+        if _is_hallucination(text):
+            logging.debug("Whisper hallucination rejected: %s", text)
+            return ""
+        return text
     finally:
         os.unlink(tmp_path)
 
