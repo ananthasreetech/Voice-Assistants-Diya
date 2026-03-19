@@ -1,0 +1,17 @@
+[project]
+name = "voice-bot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "audio-recorder-streamlit>=0.0.10",
+    "edge-tts>=7.2.7",
+    "groq>=0.37.1",
+    "langchain-community>=0.4.1",
+    "langchain-core>=1.2.20",
+    "langchain-groq>=1.1.2",
+    "python-dotenv>=1.2.2",
+    "streamlit>=1.55.0",
+    "tavily-python>=0.7.23",
+]

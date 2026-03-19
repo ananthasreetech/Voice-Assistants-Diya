@@ -1,0 +1,32 @@
+# Secrets — never commit
+.env
+*.env
+.streamlit/secrets.toml
+
+# Memory file contains personal user data
+diya_memory.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

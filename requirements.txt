@@ -1,0 +1,9 @@
+streamlit
+langchain-groq
+langchain-core
+langchain-community
+audio-recorder-streamlit
+edge-tts
+groq
+python-dotenv
+tavily-python
